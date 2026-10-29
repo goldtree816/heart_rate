@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import styles from '../style/header';
+import styles from '../styles/header';
 
 export default function Header({ onSettingsPress, isSettingsActive }) {
   return (

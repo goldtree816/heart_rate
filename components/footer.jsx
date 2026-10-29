@@ -2,26 +2,30 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import styles from '../style/footer';
+import { useRouter, usePathname } from 'expo-router';
+import styles from '../styles/footer';
 
 const tabs = [
-  { name: 'Home', icon: 'home-outline', activeIcon: 'home' },
-  { name: 'Activity', icon: 'bar-chart-outline', activeIcon: 'bar-chart' },
-  { name: 'Profile', icon: 'person-outline', activeIcon: 'person' },
+  { name: 'Home', href: '/', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'Activity', href: '/activity', icon: 'bar-chart-outline', activeIcon: 'bar-chart' },
+  { name: 'Profile', href: '/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
 
-export default function Footer({ activeTab, onTabPress }) {
+export default function Footer() {
+  const router = useRouter();
+  const pathname = usePathname();
+
   return (
     <SafeAreaView edges={['bottom']} style={styles.safeArea}>
       <View style={styles.footer}>
         {tabs.map((tab) => {
-          const isActive = activeTab === tab.name;
+          const isActive = pathname === tab.href;
 
           return (
             <TouchableOpacity
               key={tab.name}
               style={styles.navItem}
-              onPress={() => onTabPress(tab.name)}
+              onPress={() => router.navigate(tab.href)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={tab.name}
