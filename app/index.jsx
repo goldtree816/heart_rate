@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { View, Text, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Header from '../components/header';
 import Footer from '../components/footer';
 import styles from '../style/style';
@@ -15,6 +17,15 @@ const screens = {
 export default function Index() {
   const [activeTab, setActiveTab] = useState('Home');
   const screen = screens[activeTab];
+
+  // Handle navigation when a footer tab is clicked
+  const handleTabPress = (tab) => {
+    if (tab === 'Profile') {
+      router.push('/profile');
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -31,7 +42,10 @@ export default function Index() {
         <Text style={styles.description}>{screen.description}</Text>
       </View>
 
-      <Footer activeTab={activeTab} onTabPress={setActiveTab} />
+      <Footer
+        activeTab={activeTab}
+        onTabPress={handleTabPress}
+      />
     </View>
   );
 }
