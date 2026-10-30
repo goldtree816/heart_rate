@@ -14,8 +14,8 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import Header from '../Components/Header1';
-import Footer from '../Components/footer1';
+import Header from '../components/Header1';
+import Footer from '../components/footer1';
 
 import styles from '../style/home';
 

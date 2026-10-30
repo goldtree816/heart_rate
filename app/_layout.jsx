@@ -2,7 +2,7 @@
 import React from 'react';
 import { Tabs, useRouter, usePathname } from 'expo-router';
 
-import Footer from '../Components/footer1';
+import Footer from '../components/footer1'
 
 export default function RootLayout() {
   const router = useRouter();

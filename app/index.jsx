@@ -11,12 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
-import Header from '../Components/Header1';
-import Footer from '../Components/footer1';
-import HeartRateCircle from '../Components/HeartRateCircle';
-import HeartRateStats from '../Components/HeartRateStats';
-import HeartRateChart from '../Components/HeartRateChart';
-import TimeFilter from '../Components/TimeFilter';
+import Header from '../components/Header1';
+import Footer from '../components/footer1';
+import HeartRateCircle from '../components/HeartRateCircle';
+import HeartRateStats from '../components/HeartRateStats';
+import HeartRateChart from '../components/HeartRateChart';
+import TimeFilter from '../components/TimeFilter';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState('Heart Rate');
