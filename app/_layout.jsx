@@ -1,18 +1,29 @@
 
 import React from 'react';
-import { Tabs, useRouter, usePathname } from 'expo-router';
+import { View, StyleSheet } from 'react-native';
+import { Stack, usePathname, useRouter } from 'expo-router';
 
-import Footer from '../components/footer1'
+import Header from '../components/Header1';
+import Footer from '../components/footer1';
 
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
+
+  const isScanner = pathname === '/scanner';
 
   const activeTab =
     pathname === '/home' ? 'Home' :
     pathname === '/activity' ? 'Activity' :
     pathname === '/profile' ? 'Profile' :
     pathname === '/' ? 'Heart Rate' : '';
+
+  const titles = {
+    '/': 'Heart Rate',
+    '/home': 'Home',
+    '/activity': 'Activity',
+    '/profile': 'Profile',
+  };
 
   const handleTabPress = (tab) => {
     const routes = {
@@ -28,25 +39,44 @@ export default function RootLayout() {
   };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-      }}
-      tabBar={() => (
+    <View style={styles.container}>
+
+      {!isScanner && (
+        <Header
+          title={titles[pathname] || 'Health Tracker'}
+          onBackPress={() => router.back()}
+          onSettingsPress={() => router.push('/profile')}
+        />
+      )}
+
+      <View style={styles.screen}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="home" />
+          <Stack.Screen name="activity" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="scanner" />
+        </Stack>
+      </View>
+
+      {!isScanner && (
         <Footer
           activeTab={activeTab}
           onTabPress={handleTabPress}
         />
       )}
-    >
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="activity" />
-      <Tabs.Screen name="profile" />
-      <Tabs.Screen
-        name="scanner"
-        options={{ href: null }}
-      />
-    </Tabs>
+
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+
+  screen: {
+    flex: 1,
+  },
+});
