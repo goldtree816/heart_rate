@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
-
+import { Link, useRouter } from 'expo-router';
 import Header from '../Components/Header1';
 import Footer from '../Components/footer1';
 import HeartRateCircle from '../Components/HeartRateCircle';
@@ -23,6 +22,23 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState('Heart Rate');
   const [period, setPeriod] = useState('Today');
 
+ const router = useRouter();
+
+const handleTabPress = (tab) => {
+  if (tab === 'Home') {
+    router.push('/home');
+  } 
+  else if (tab === 'Activity') {
+    router.push('/activity');
+  } 
+  else if (tab === 'Heart Rate') {
+    return;
+  } 
+  else if (tab === 'Profile') {
+    router.push('/profile');
+  }
+};
+
   return (
     <SafeAreaView
       style={styles.container}
@@ -33,11 +49,6 @@ export default function Index() {
         backgroundColor="#FFFFFF"
       />
 
-      <Header
-        title="Heart Rate"
-        onBackPress={() => setActiveTab('Home')}
-        onSettingsPress={() => setActiveTab('Profile')}
-      />
 
       {activeTab === 'Heart Rate' ? (
         <ScrollView
@@ -122,10 +133,6 @@ export default function Index() {
         </View>
       )}
 
-      <Footer
-        activeTab={activeTab}
-        onTabPress={setActiveTab}
-      />
     </SafeAreaView>
   );
 }
