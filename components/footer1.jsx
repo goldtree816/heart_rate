@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,8 +7,21 @@ import styles from '../style/footer';
 
 const tabs = [
   { name: 'Home', icon: 'home-outline', activeIcon: 'home' },
-  { name: 'Activity', icon: 'bar-chart-outline', activeIcon: 'bar-chart' },
-  { name: 'Profile', icon: 'person-outline', activeIcon: 'person' },
+  {
+    name: 'Heart Rate',
+    icon: 'heart-outline',
+    activeIcon: 'heart',
+  },
+  {
+    name: 'Activity',
+    icon: 'bar-chart-outline',
+    activeIcon: 'bar-chart',
+  },
+  {
+    name: 'Profile',
+    icon: 'person-outline',
+    activeIcon: 'person',
+  },
 ];
 
 export default function Footer({ activeTab, onTabPress }) {
@@ -32,7 +46,13 @@ export default function Footer({ activeTab, onTabPress }) {
                 size={24}
                 color={isActive ? '#f43f5e' : '#8493a8'}
               />
-              <Text style={[styles.label, isActive && styles.activeLabel]}>
+
+              <Text
+                style={[
+                  styles.label,
+                  isActive && styles.activeLabel,
+                ]}
+              >
                 {tab.name}
               </Text>
             </TouchableOpacity>
