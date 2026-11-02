@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+
 import {
   View,
   Text,
@@ -9,17 +10,24 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+
+import { useRouter, useFocusEffect } from 'expo-router';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import Header from '../components/Header1';
-import Footer from '../components/footer1';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+} from '@expo/vector-icons';
 
 import styles from '../style/home';
 
 const USER_NAME = 'Karan Kumar Shah';
+
+// Same key used in index.jsx
+const HEART_RATE_KEY = '@heart_rate/latest_scan';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -29,30 +37,6 @@ const getGreeting = () => {
 
   return 'Good Evening,';
 };
-
-const stats = [
-  {
-    label: 'Steps',
-    value: '4,230',
-    sub: '/ 10,000',
-    bg: '#dff5ea',
-    icon: <Ionicons name="footsteps" size={16} color="#22c55e" />,
-  },
-  {
-    label: 'Calories',
-    value: '320',
-    sub: 'kcal',
-    bg: '#ffeedd',
-    icon: <Ionicons name="flame" size={16} color="#f97316" />,
-  },
-  {
-    label: 'Sleep',
-    value: '7h 45m',
-    sub: 'Good',
-    bg: '#ece8fb',
-    icon: <Ionicons name="moon" size={16} color="#8b5cf6" />,
-  },
-];
 
 const quickActions = [
   {
@@ -92,23 +76,169 @@ const quickActions = [
 export default function Home() {
   const router = useRouter();
 
-  // Footer navigation
-  const handleTabPress = (tab) => {
-    if (tab === 'Home') {
-      return;
-    }
+  // Sleep data
+  const [bedTime, setBedTime] = useState('--:--');
+  const [sleepDuration, setSleepDuration] = useState('0h 0m');
 
-    if (tab === 'Heart Rate') {
-      router.push('/');
-    }
+  // Heart rate data
+  const [heartRate, setHeartRate] = useState(0);
 
-    // Add Activity and Profile navigation later
-  };
+  // Load all dashboard data whenever Home becomes active
+  useFocusEffect(
+    useCallback(() => {
+      let interval = null;
+      let isMounted = true;
+
+      const loadDashboardData = async () => {
+        try {
+          // Load Sleep and Heart Rate data together
+          const values = await AsyncStorage.multiGet([
+            'bedTime',
+            'sleepDuration',
+            'sleepStartTimestamp',
+            'isSleeping',
+            HEART_RATE_KEY,
+          ]);
+
+          if (!isMounted) return;
+
+          // -----------------------------
+          // SLEEP DATA
+          // -----------------------------
+
+          const savedBedTime = values[0][1];
+          const savedDuration = values[1][1];
+          const savedStartTimestamp = values[2][1];
+          const savedIsSleeping = values[3][1] === 'true';
+
+          if (savedBedTime) {
+            setBedTime(savedBedTime);
+          } else {
+            setBedTime('--:--');
+          }
+
+          // If currently sleeping, calculate live duration
+          if (savedIsSleeping && savedStartTimestamp) {
+            const startTime = Number(savedStartTimestamp);
+
+            const updateLiveDuration = () => {
+              if (!isMounted) return;
+
+              const elapsedSeconds = Math.max(
+                0,
+                Math.floor((Date.now() - startTime) / 1000)
+              );
+
+              const hours = Math.floor(elapsedSeconds / 3600);
+
+              const minutes = Math.floor(
+                (elapsedSeconds % 3600) / 60
+              );
+
+              setSleepDuration(`${hours}h ${minutes}m`);
+            };
+
+            updateLiveDuration();
+
+            interval = setInterval(updateLiveDuration, 1000);
+          } else if (savedDuration !== null) {
+            // Show the last completed sleep duration
+            const totalSeconds = Number(savedDuration);
+
+            const hours = Math.floor(totalSeconds / 3600);
+
+            const minutes = Math.floor(
+              (totalSeconds % 3600) / 60
+            );
+
+            setSleepDuration(`${hours}h ${minutes}m`);
+          } else {
+            setSleepDuration('0h 0m');
+          }
+
+          // -----------------------------
+          // HEART RATE DATA
+          // -----------------------------
+
+          const savedHeartRate = values[4][1];
+
+          if (savedHeartRate) {
+            const parsedData = JSON.parse(savedHeartRate);
+
+            setHeartRate(Number(parsedData.bpm) || 0);
+          } else {
+            setHeartRate(0);
+          }
+
+        } catch (error) {
+          console.log('Error loading dashboard data:', error);
+        }
+      };
+
+      loadDashboardData();
+
+      // Clear timer when leaving Home
+      return () => {
+        isMounted = false;
+
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    }, [])
+  );
+
+  // Health statistics
+  const stats = [
+    {
+      label: 'Steps',
+      value: '0',
+      sub: '/ 10,000',
+      bg: '#dff5ea',
+      icon: (
+        <Ionicons
+          name="footsteps"
+          size={16}
+          color="#22c55e"
+        />
+      ),
+    },
+    {
+      label: 'Calories',
+      value: '0',
+      sub: 'kcal',
+      bg: '#ffeedd',
+      icon: (
+        <Ionicons
+          name="flame"
+          size={16}
+          color="#f97316"
+        />
+      ),
+    },
+    {
+      label: 'Sleep',
+      value: sleepDuration,
+      sub: `Bedtime: ${bedTime}`,
+      bg: '#ece8fb',
+      icon: (
+        <Ionicons
+          name="moon"
+          size={16}
+          color="#8b5cf6"
+        />
+      ),
+    },
+  ];
 
   // Quick Actions navigation
   const handleQuickAction = (item) => {
     if (item.label.includes('Measure')) {
       router.push('/');
+    } else if (item.label.includes('Track')) {
+      router.push('/activity');
+    } else if (item.label.includes('Log')) {
+      router.push('/sleep');
     } else if (item.label.includes('View')) {
       router.push('/activity');
     }
@@ -127,7 +257,6 @@ export default function Home() {
         backgroundColor="#FFFFFF"
       />
 
-      {/* Home Screen Content */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -196,13 +325,23 @@ export default function Home() {
 
             <View style={styles.heartInfo}>
               <View style={styles.bpmRow}>
-                <Text style={styles.bpmValue}>72</Text>
-                <Text style={styles.bpmUnit}>bpm</Text>
+                <Text style={styles.bpmValue}>
+                  {heartRate}
+                </Text>
+
+                <Text style={styles.bpmUnit}>
+                  bpm
+                </Text>
               </View>
 
               <View style={styles.normalPill}>
                 <View style={styles.normalDot} />
-                <Text style={styles.normalText}>Normal</Text>
+
+                <Text style={styles.normalText}>
+                  {heartRate > 0
+                    ? 'Latest reading'
+                    : 'Not measured'}
+                </Text>
               </View>
             </View>
 
@@ -254,7 +393,9 @@ export default function Home() {
             accessibilityLabel="View all"
             onPress={() => router.push('/activity')}
           >
-            <Text style={styles.viewAll}>View All</Text>
+            <Text style={styles.viewAll}>
+              View All
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -269,11 +410,11 @@ export default function Home() {
 
           <View style={styles.overviewText}>
             <Text style={styles.overviewTitle}>
-              Your heart rate is in the normal range.
+              Your health data is waiting.
             </Text>
 
             <Text style={styles.overviewSub}>
-              Keep up the good work!
+              Start tracking your health today!
             </Text>
           </View>
 
