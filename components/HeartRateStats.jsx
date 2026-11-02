@@ -3,28 +3,32 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const stats = [
-  {
-    label: 'Resting HR',
-    value: 68,
-    icon: 'heart',
-    color: '#F43F5E',
-  },
-  {
-    label: 'Min',
-    value: 56,
-    icon: 'trending-down',
-    color: '#2196F3',
-  },
-  {
-    label: 'Max',
-    value: 128,
-    icon: 'trending-up',
-    color: '#9B51E0',
-  },
-];
+export default function HeartRateStats({
+  bpm = 0,
+  minBpm = 0,
+  maxBpm = 0,
+}) {
+  const stats = [
+    {
+      label: 'Resting HR',
+      value: bpm,
+      icon: 'heart',
+      color: '#F43F5E',
+    },
+    {
+      label: 'Min',
+      value: minBpm,
+      icon: 'trending-down',
+      color: '#2196F3',
+    },
+    {
+      label: 'Max',
+      value: maxBpm,
+      icon: 'trending-up',
+      color: '#9B51E0',
+    },
+  ];
 
-export default function HeartRateStats() {
   return (
     <View style={styles.container}>
       {stats.map((item, index) => (
@@ -41,7 +45,9 @@ export default function HeartRateStats() {
             color={item.color}
           />
 
-          <Text style={styles.label}>{item.label}</Text>
+          <Text style={styles.label}>
+            {item.label}
+          </Text>
 
           <Text style={styles.value}>
             {item.value}
@@ -56,34 +62,41 @@ export default function HeartRateStats() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#F4F7FB',
-    borderRadius: 18,
-    marginTop: 22,
-    paddingVertical: 16,
-    paddingHorizontal: 5,
+    backgroundColor: '#F8F9FC',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    marginTop: 20,
+    marginBottom: 20,
   },
+
   card: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   divider: {
     borderRightWidth: 1,
-    borderRightColor: '#E5EAF1',
+    borderRightColor: '#E5E7EB',
   },
+
   label: {
-    fontSize: 11,
-    color: '#788394',
-    marginTop: 7,
-    marginBottom: 4,
+    fontSize: 12,
+    color: '#8993A2',
+    marginTop: 8,
+    marginBottom: 5,
   },
+
   value: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#24364B',
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#192D42',
   },
+
   unit: {
     fontSize: 10,
-    fontWeight: '400',
+    fontWeight: '500',
+    color: '#8993A2',
   },
 });

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+
 import {
   View,
   Text,
@@ -9,23 +10,67 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import HeartRateCircle from '../components/HeartRateCircle';
 import HeartRateStats from '../components/HeartRateStats';
 import HeartRateChart from '../components/HeartRateChart';
 import TimeFilter from '../components/TimeFilter';
 
+const STORAGE_KEY = '@heart_rate/latest_scan';
+
 export default function Index() {
   const router = useRouter();
 
   const [period, setPeriod] = useState('Today');
 
- const handleScan = () => {
-  router.push('/scanner');
-};
+  const [latestScan, setLatestScan] = useState({
+    bpm: 0,
+    minBpm: 0,
+    maxBpm: 0,
+  });
+
+  // Load the latest scan whenever the dashboard becomes active
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const loadLatestScan = async () => {
+        try {
+          const savedData = await AsyncStorage.getItem(STORAGE_KEY);
+
+          if (savedData && isActive) {
+            const parsedData = JSON.parse(savedData);
+
+            setLatestScan({
+              bpm: parsedData.bpm ?? 0,
+              minBpm: parsedData.minBpm ?? 0,
+              maxBpm: parsedData.maxBpm ?? 0,
+            });
+          }
+        } catch (error) {
+          console.log('Error loading heart rate:', error);
+        }
+      };
+
+      loadLatestScan();
+
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
+  // Navigate to scanner screen
+  const handleScan = () => {
+    router.push('/scanner');
+  };
 
   return (
     <SafeAreaView
@@ -42,17 +87,27 @@ export default function Index() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <HeartRateCircle bpm={72} />
 
-        <HeartRateStats />
+        {/* Main Heart Rate Display */}
+        <HeartRateCircle bpm={latestScan.bpm} />
 
+        {/* Heart Rate Statistics */}
+        <HeartRateStats
+          bpm={latestScan.bpm}
+          minBpm={latestScan.minBpm}
+          maxBpm={latestScan.maxBpm}
+        />
+
+        {/* Time Filter */}
         <TimeFilter
           selected={period}
           onChange={setPeriod}
         />
 
+        {/* Heart Rate Chart */}
         <HeartRateChart period={period} />
 
+        {/* Information Note */}
         <View style={styles.note}>
           <Ionicons
             name="information-circle-outline"
@@ -61,7 +116,7 @@ export default function Index() {
           />
 
           <Text style={styles.noteText}>
-            Sample data only — not a medical measurement.
+            Demo readings only — not a medical measurement.
           </Text>
         </View>
 
