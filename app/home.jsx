@@ -105,6 +105,15 @@ export default function Home() {
     // Add Activity and Profile navigation later
   };
 
+  // Quick Actions navigation
+  const handleQuickAction = (item) => {
+    if (item.label.includes('Measure')) {
+      router.push('/');
+    } else if (item.label.includes('View')) {
+      router.push('/activity');
+    }
+  };
+
   return (
     <SafeAreaView
       style={{
@@ -118,7 +127,6 @@ export default function Home() {
         backgroundColor="#FFFFFF"
       />
 
-      
       {/* Home Screen Content */}
       <ScrollView
         style={styles.scroll}
@@ -244,6 +252,7 @@ export default function Home() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="View all"
+            onPress={() => router.push('/activity')}
           >
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
@@ -291,6 +300,7 @@ export default function Home() {
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel={item.label.replace('\n', ' ')}
+              onPress={() => handleQuickAction(item)}
             >
               {item.icon}
 
@@ -332,7 +342,6 @@ export default function Home() {
         </TouchableOpacity>
 
       </ScrollView>
-
     </SafeAreaView>
   );
 }

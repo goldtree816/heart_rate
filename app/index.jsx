@@ -116,7 +116,7 @@ export default function Index() {
           />
 
           <Text style={styles.noteText}>
-            Demo readings only — not a medical measurement.
+            Readings only — not a medical measurement.
           </Text>
         </View>
 

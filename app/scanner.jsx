@@ -173,10 +173,6 @@ export default function Scanner() {
         <Text style={styles.description}>
           Place your fingertip gently over the rear camera.
         </Text>
-
-        <Text style={styles.demoBadge}>
-          SIMULATED DEMO MODE
-        </Text>
       </View>
 
       {/* Camera Preview */}
@@ -365,7 +361,6 @@ export default function Scanner() {
       </TouchableOpacity>
 
       <Text style={styles.disclaimer}>
-        DEMO ONLY: Heart-rate values are randomly generated.
         The camera does not measure your actual pulse.
         Do not use these readings for medical decisions.
       </Text>
