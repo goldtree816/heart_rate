@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+
 import {
   View,
   Text,
@@ -8,19 +9,35 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { CameraView, useCameraPermissions } from 'expo-camera';
+
 import { Ionicons } from '@expo/vector-icons';
+
+import { useRouter } from 'expo-router';
 
 const STORAGE_KEY = '@heart_rate/latest_scan';
 
 export default function Scanner() {
+  const router = useRouter();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [result, setResult] = useState(null);
+
+  // Go back to previous page
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/home');
+    }
+  };
 
   // Generate a simulated heart-rate reading
   const generateHeartRate = () => {
@@ -166,6 +183,20 @@ export default function Scanner() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
+
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleGoBack}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={26}
+            color="#24364B"
+          />
+        </TouchableOpacity>
+
         <Text style={styles.title}>
           Heart Rate Scanner
         </Text>
@@ -275,6 +306,7 @@ export default function Scanner() {
                 size={18}
                 color="#2196F3"
               />
+
               <Text style={styles.exerciseText}>
                 {item}
               </Text>
@@ -296,25 +328,31 @@ export default function Scanner() {
             <Text style={styles.statLabel}>
               Resting HR
             </Text>
+
             <Text style={styles.statValue}>
               {result.bpm}
             </Text>
+
             <Text style={styles.statUnit}>BPM</Text>
           </View>
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Minimum</Text>
+
             <Text style={styles.statValue}>
               {result.minBpm}
             </Text>
+
             <Text style={styles.statUnit}>BPM</Text>
           </View>
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Maximum</Text>
+
             <Text style={styles.statValue}>
               {result.maxBpm}
             </Text>
+
             <Text style={styles.statUnit}>BPM</Text>
           </View>
         </View>
@@ -373,10 +411,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+
   content: {
     padding: 20,
     paddingBottom: 35,
   },
+
   center: {
     flex: 1,
     alignItems: 'center',
@@ -384,16 +424,31 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: '#FFFFFF',
   },
+
   header: {
     alignItems: 'center',
     marginBottom: 18,
   },
+
+  // Back Button Style
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#192D42',
     textAlign: 'center',
   },
+
   description: {
     fontSize: 14,
     color: '#8493A8',
@@ -401,6 +456,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 21,
   },
+
   demoBadge: {
     color: '#F43F5E',
     fontSize: 10,
@@ -408,18 +464,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 10,
   },
+
   cameraFrame: {
     height: 200,
     overflow: 'hidden',
     borderRadius: 22,
     backgroundColor: '#222222',
   },
+
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
+
   target: {
     width: 100,
     height: 100,
@@ -429,6 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   cameraHint: {
     color: '#FFFFFF',
     fontSize: 12,
@@ -436,79 +496,94 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 10,
   },
+
   result: {
     alignItems: 'center',
     marginVertical: 20,
   },
+
   bpmRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
+
   bpm: {
     fontSize: 56,
     fontWeight: '800',
     color: '#192D42',
   },
+
   unit: {
     color: '#8493A8',
     fontSize: 14,
     marginLeft: 7,
   },
+
   status: {
     color: '#F43F5E',
     fontWeight: '600',
     marginTop: 8,
   },
+
   assessmentCard: {
     backgroundColor: '#F4F7FB',
     padding: 16,
     borderRadius: 16,
     marginBottom: 15,
   },
+
   assessmentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
   },
+
   assessmentTitle: {
     fontSize: 15,
     fontWeight: '700',
     flex: 1,
   },
+
   assessmentMessage: {
     fontSize: 13,
     color: '#788394',
     lineHeight: 20,
     marginTop: 10,
   },
+
   exerciseCard: {
     backgroundColor: '#EFF6FF',
     padding: 16,
     borderRadius: 16,
     marginBottom: 15,
   },
+
   exerciseTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#192D42',
     marginBottom: 12,
   },
+
   exerciseItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginVertical: 5,
   },
+
   exerciseText: {
     fontSize: 13,
     color: '#536477',
   },
+
   exerciseNote: {
     fontSize: 11,
     color: '#788394',
     lineHeight: 17,
     marginTop: 12,
   },
+
   statsCard: {
     flexDirection: 'row',
     backgroundColor: '#F4F7FB',
@@ -516,24 +591,29 @@ const styles = StyleSheet.create({
     paddingVertical: 17,
     marginBottom: 15,
   },
+
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
+
   statLabel: {
     fontSize: 11,
     color: '#788394',
   },
+
   statValue: {
     fontSize: 21,
     fontWeight: '800',
     color: '#24364B',
     marginTop: 6,
   },
+
   statUnit: {
     fontSize: 10,
     color: '#8493A8',
   },
+
   primaryButton: {
     backgroundColor: '#F43F5E',
     padding: 16,
@@ -541,22 +621,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+
   disabledButton: {
     opacity: 0.55,
   },
+
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
+
   cancelButton: {
     alignItems: 'center',
     padding: 12,
   },
+
   cancelText: {
     color: '#F43F5E',
     fontWeight: '600',
   },
+
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -564,10 +649,12 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 14,
   },
+
   secondaryText: {
     color: '#F43F5E',
     fontWeight: '600',
   },
+
   disclaimer: {
     fontSize: 11,
     color: '#8493A8',
