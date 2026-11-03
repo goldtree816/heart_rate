@@ -1,0 +1,9 @@
+expo.modules.stepcounter.step-counter-pngs-0 D:\INTERN\native\modules\step-counter\android\build\generated\res\pngs\debug
+expo.modules.stepcounter.step-counter-updated_navigation_xml-1 D:\INTERN\native\modules\step-counter\android\build\generated\updated_navigation_xml\debug
+expo.modules.stepcounter.step-counter-mergeDebugResources-2 D:\INTERN\native\modules\step-counter\android\build\intermediates\incremental\debug\mergeDebugResources\merged.dir
+expo.modules.stepcounter.step-counter-mergeDebugResources-3 D:\INTERN\native\modules\step-counter\android\build\intermediates\incremental\debug\mergeDebugResources\stripped.dir
+expo.modules.stepcounter.step-counter-debug-4 D:\INTERN\native\modules\step-counter\android\build\intermediates\merged_res\debug\mergeDebugResources
+expo.modules.stepcounter.step-counter-debug-5 D:\INTERN\native\modules\step-counter\android\build\intermediates\packaged_res\debug\packageDebugResources
+expo.modules.stepcounter.step-counter-debug-6 D:\INTERN\native\modules\step-counter\android\src\debug\res
+expo.modules.stepcounter.step-counter-main-7 D:\INTERN\native\modules\step-counter\android\src\main\res
+gradleHome-0 C:\Users\Swornim Maharjan\.gradle

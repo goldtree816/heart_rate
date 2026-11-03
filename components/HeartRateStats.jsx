@@ -51,7 +51,7 @@ export default function HeartRateStats({
 
           <Text style={styles.value}>
             {item.value}
-            <Text style={styles.unit}> bpm</Text>
+            <Text style={styles.unit}> bpm</Text>npx 
           </Text>
         </View>
       ))}

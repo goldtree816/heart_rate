@@ -1,0 +1,36 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="expo.modules.stepcounter" >
+4
+5    <uses-sdk android:minSdkVersion="26" />
+5-->INJECTED
+5-->INJECTED
+6
+7    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+7-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:2:3-77
+7-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:2:20-74
+8    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+8-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:3:3-75
+8-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:3:20-72
+9    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+9-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:4:3-82
+9-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:4:20-79
+10    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+10-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:5:3-75
+10-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:5:20-72
+11
+12    <application>
+12-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:7:3-13:17
+13        <service
+13-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:8:5-12:38
+14            android:name="expo.modules.stepcounter.StepCounterService"
+14-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:9:7-65
+15            android:exported="false"
+15-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:10:7-31
+16            android:foregroundServiceType="health"
+16-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:11:7-45
+17            android:stopWithTask="false" />
+17-->D:\INTERN\native\modules\step-counter\android\src\main\AndroidManifest.xml:12:7-35
+18    </application>
+19
+20</manifest>

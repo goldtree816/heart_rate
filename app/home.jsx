@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 
 import {
@@ -7,6 +8,11 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
+
+import {
+  initializeStepTracker,
+  getTodaySteps,
+} from '../components/stepTracker';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +38,10 @@ const HEART_RATE_KEY = '@heart_rate/latest_scan';
 // Same key used in profile.jsx
 const PERSONAL_DETAILS_KEY = '@heart_rate/personal_details';
 
+// Daily step goal
+const STEP_GOAL = 10000;
+
+// Greeting based on current time
 const getGreeting = () => {
   const hour = new Date().getHours();
 
@@ -79,7 +89,7 @@ const quickActions = [
 export default function Home() {
   const router = useRouter();
 
-  // User name (loaded from profile details)
+  // User name
   const [userName, setUserName] = useState(DEFAULT_NAME);
 
   // Sleep data
@@ -88,6 +98,10 @@ export default function Home() {
 
   // Heart rate data
   const [heartRate, setHeartRate] = useState(0);
+
+  // Daily activity data
+  const [steps, setSteps] = useState(0);
+  const [calories, setCalories] = useState(0);
 
   // Load all dashboard data whenever Home becomes active
   useFocusEffect(
@@ -110,7 +124,7 @@ export default function Home() {
           if (!isMounted) return;
 
           // -----------------------------
-          // USER NAME (from profile)
+          // USER NAME
           // -----------------------------
 
           const savedDetails = values[5][1];
@@ -214,12 +228,71 @@ export default function Home() {
     }, [])
   );
 
-  // Health statistics
+  // -----------------------------
+  // DAILY STEP TRACKER
+  // -----------------------------
+
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      let stepInterval = null;
+
+      const loadSteps = async () => {
+        try {
+          // Initialize Health Connect and request permission
+          await initializeStepTracker();
+
+          if (!isMounted) return;
+
+          // Get today's steps
+          const todaySteps = await getTodaySteps();
+
+          if (!isMounted) return;
+
+          const totalSteps = Math.max(
+            0,
+            Number(todaySteps) || 0
+          );
+
+          // Update steps
+          setSteps(totalSteps);
+
+          // Estimated calories
+          // Rough estimate: 20 steps = 1 kcal
+          setCalories(Math.floor(totalSteps / 20));
+
+        } catch (error) {
+          console.log('Error loading step data:', error);
+        }
+      };
+
+      // Load immediately
+      loadSteps();
+
+      // Refresh every 60 seconds
+      stepInterval = setInterval(() => {
+        loadSteps();
+      }, 60000);
+
+      return () => {
+        isMounted = false;
+
+        if (stepInterval) {
+          clearInterval(stepInterval);
+        }
+      };
+    }, [])
+  );
+
+  // -----------------------------
+  // HEALTH STATISTICS
+  // -----------------------------
+
   const stats = [
     {
       label: 'Steps',
-      value: '0',
-      sub: '/ 10,000',
+      value: steps.toLocaleString(),
+      sub: `/ ${STEP_GOAL.toLocaleString()}`,
       bg: '#dff5ea',
       icon: (
         <Ionicons
@@ -231,7 +304,7 @@ export default function Home() {
     },
     {
       label: 'Calories',
-      value: '0',
+      value: calories.toLocaleString(),
       sub: 'kcal',
       bg: '#ffeedd',
       icon: (
