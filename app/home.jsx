@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 
 import {
@@ -24,10 +23,14 @@ import {
 
 import styles from '../style/home';
 
-const USER_NAME = 'Karan Kumar Shah';
+// Name shown when the user hasn't saved their details yet
+const DEFAULT_NAME = 'Guest';
 
 // Same key used in index.jsx
 const HEART_RATE_KEY = '@heart_rate/latest_scan';
+
+// Same key used in profile.jsx
+const PERSONAL_DETAILS_KEY = '@heart_rate/personal_details';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -76,6 +79,9 @@ const quickActions = [
 export default function Home() {
   const router = useRouter();
 
+  // User name (loaded from profile details)
+  const [userName, setUserName] = useState(DEFAULT_NAME);
+
   // Sleep data
   const [bedTime, setBedTime] = useState('--:--');
   const [sleepDuration, setSleepDuration] = useState('0h 0m');
@@ -91,16 +97,36 @@ export default function Home() {
 
       const loadDashboardData = async () => {
         try {
-          // Load Sleep and Heart Rate data together
+          // Load Sleep, Heart Rate and Profile data together
           const values = await AsyncStorage.multiGet([
             'bedTime',
             'sleepDuration',
             'sleepStartTimestamp',
             'isSleeping',
             HEART_RATE_KEY,
+            PERSONAL_DETAILS_KEY,
           ]);
 
           if (!isMounted) return;
+
+          // -----------------------------
+          // USER NAME (from profile)
+          // -----------------------------
+
+          const savedDetails = values[5][1];
+
+          if (savedDetails) {
+            try {
+              const parsedDetails = JSON.parse(savedDetails);
+              const savedName = parsedDetails.name?.trim();
+
+              setUserName(savedName || DEFAULT_NAME);
+            } catch (parseError) {
+              setUserName(DEFAULT_NAME);
+            }
+          } else {
+            setUserName(DEFAULT_NAME);
+          }
 
           // -----------------------------
           // SLEEP DATA
@@ -271,7 +297,7 @@ export default function Home() {
             </Text>
 
             <Text style={styles.userName}>
-              {USER_NAME}
+              {userName}
             </Text>
 
             <Text style={styles.tagline}>

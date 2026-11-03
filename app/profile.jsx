@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,42 +9,174 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@heart_rate/personal_details';
 
 export default function Profile() {
+  const router = useRouter();
+
+  const [details, setDetails] = useState({
+    name: 'Unknown',
+    address: '',
+    country: '',
+    age: '0',
+    height: '0',
+    weight: '0',
+  });
+
+  // true  -> user has saved some data  -> show "Edit Details"
+  // false -> nothing saved yet         -> show "Add Details"
+  const [hasDetails, setHasDetails] = useState(false);
+
+  // Load saved profile information
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const loadDetails = async () => {
+        try {
+          const savedData = await AsyncStorage.getItem(STORAGE_KEY);
+
+          if (!active) return;
+
+          if (savedData) {
+            const parsedData = JSON.parse(savedData);
+
+            // Check if the user actually entered anything
+            const filled = Boolean(
+              parsedData.name?.trim() ||
+                parsedData.address?.trim() ||
+                parsedData.country?.trim() ||
+                (parsedData.age && parsedData.age !== '0') ||
+                (parsedData.height && parsedData.height !== '0') ||
+                (parsedData.weight && parsedData.weight !== '0')
+            );
+
+            setHasDetails(filled);
+
+            setDetails({
+              name: parsedData.name || 'Unknown',
+              address: parsedData.address || '',
+              country: parsedData.country || '',
+              age: parsedData.age || '0',
+              height: parsedData.height || '0',
+              weight: parsedData.weight || '0',
+            });
+          } else {
+            setHasDetails(false);
+          }
+        } catch (error) {
+          console.log('Error loading profile:', error);
+        }
+      };
+
+      loadDetails();
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  // Navigate to Personal Details
+  const handleAddDetails = () => {
+    router.push('/details');
+  };
+
   const menuItems = [
-    { title: 'Personal Information', icon: 'person-outline', type: 'ion' },
-    { title: 'Health Goals', subtitle: 'Lose weight • Be more active', icon: 'target', type: 'feather' },
-    { title: 'Notifications', icon: 'notifications-outline', type: 'ion' },
-    { title: 'Data & Privacy', icon: 'shield-checkmark-outline', type: 'ion' },
-    { title: 'Help & Support', icon: 'help-circle-outline', type: 'ion' },
-    { title: 'About App', icon: 'information-circle-outline', type: 'ion' },
+    {
+      title: 'Personal Information',
+      icon: 'person-outline',
+      type: 'ion',
+    },
+    {
+      title: 'Health Goals',
+      subtitle: 'Lose weight • Be more active',
+      icon: 'target',
+      type: 'feather',
+    },
+    {
+      title: 'Notifications',
+      icon: 'notifications-outline',
+      type: 'ion',
+    },
+    {
+      title: 'Data & Privacy',
+      icon: 'shield-checkmark-outline',
+      type: 'ion',
+    },
+    {
+      title: 'Help & Support',
+      icon: 'help-circle-outline',
+      type: 'ion',
+    },
+    {
+      title: 'About App',
+      icon: 'information-circle-outline',
+      type: 'ion',
+    },
   ];
 
   const renderIcon = (item) => {
     if (item.type === 'feather') {
-      return <Feather name={item.icon} size={20} color="#233d78" />;
+      return (
+        <Feather
+          name={item.icon}
+          size={20}
+          color="#233d78"
+        />
+      );
     }
-    return <Ionicons name={item.icon} size={21} color="#233d78" />;
+
+    return (
+      <Ionicons
+        name={item.icon}
+        size={21}
+        color="#233d78"
+      />
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="#ffffff"
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+
         {/* Profile Header */}
         <View style={styles.profileHeader}>
+
           <View style={styles.headerBackground} />
           <View style={styles.headerGlow} />
 
-          <TouchableOpacity style={styles.settingsButton}>
-            <Ionicons name="settings-outline" size={22} color="#233d78" />
+          {/* Add / Edit Details Button */}
+          <TouchableOpacity
+            style={styles.addDetailsButton}
+            onPress={handleAddDetails}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={hasDetails ? 'create-outline' : 'add-circle-outline'}
+              size={17}
+              color="#ffffff"
+            />
+
+            <Text style={styles.addDetailsText}>
+              {hasDetails ? 'Edit Details' : 'Add Details'}
+            </Text>
           </TouchableOpacity>
 
+          {/* Avatar */}
           <View style={styles.avatarContainer}>
             <Image
               source={require('../assets/avatar.png')}
@@ -53,22 +184,38 @@ export default function Profile() {
             />
           </View>
 
-          <Text style={styles.name}>Karan Kumar Shah</Text>
+          {/* Name */}
+          <Text style={styles.name}>
+            {details.name}
+          </Text>
+
           <Text style={styles.tagline}>
             Healthier Today, Stronger Tomorrow
           </Text>
 
+          {/* Premium Badge */}
           <View style={styles.premiumBadge}>
-            <Ionicons name="star" size={13} color="#f59e0b" />
-            <Text style={styles.premiumText}>Premium</Text>
+            <Ionicons
+              name="star"
+              size={13}
+              color="#f59e0b"
+            />
+
+            <Text style={styles.premiumText}>
+              Premium
+            </Text>
           </View>
+
         </View>
 
         {/* Health Stats */}
         <View style={styles.statsCard}>
+
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Age</Text>
-            <Text style={styles.statValue}>30</Text>
+            <Text style={styles.statValue}>
+              {details.age}
+            </Text>
             <Text style={styles.statUnit}>Years</Text>
           </View>
 
@@ -76,7 +223,9 @@ export default function Profile() {
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Height</Text>
-            <Text style={styles.statValue}>175</Text>
+            <Text style={styles.statValue}>
+              {details.height}
+            </Text>
             <Text style={styles.statUnit}>cm</Text>
           </View>
 
@@ -84,27 +233,41 @@ export default function Profile() {
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Weight</Text>
-            <Text style={styles.statValue}>68</Text>
+            <Text style={styles.statValue}>
+              {details.weight}
+            </Text>
             <Text style={styles.statUnit}>kg</Text>
           </View>
+
         </View>
 
         {/* Settings Menu */}
         <View style={styles.menu}>
+
           {menuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
               style={styles.menuItem}
-              onPress={() => {}}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (item.title === 'Personal Information') {
+                  handleAddDetails();
+                }
+              }}
             >
               <View style={styles.menuIcon}>
                 {renderIcon(item)}
               </View>
 
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={styles.menuTitle}>
+                  {item.title}
+                </Text>
+
                 {item.subtitle && (
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  <Text style={styles.menuSubtitle}>
+                    {item.subtitle}
+                  </Text>
                 )}
               </View>
 
@@ -113,18 +276,30 @@ export default function Profile() {
                 size={17}
                 color="#8a9dbb"
               />
+
             </TouchableOpacity>
           ))}
+
         </View>
 
         {/* Health Banner */}
-        <TouchableOpacity style={styles.healthBanner}>
+        <TouchableOpacity
+          style={styles.healthBanner}
+          activeOpacity={0.8}
+        >
           <View style={styles.heartCircle}>
-            <Ionicons name="heart" size={23} color="#f43f5e" />
+            <Ionicons
+              name="heart"
+              size={23}
+              color="#f43f5e"
+            />
           </View>
 
           <View style={styles.healthText}>
-            <Text style={styles.healthTitle}>Your Health Matters</Text>
+            <Text style={styles.healthTitle}>
+              Your Health Matters
+            </Text>
+
             <Text style={styles.healthSubtitle}>
               Track. Improve. Live Better.
             </Text>
@@ -135,13 +310,16 @@ export default function Profile() {
             size={17}
             color="#8a9dbb"
           />
+
         </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -154,7 +332,7 @@ const styles = StyleSheet.create({
   // Profile Header
   profileHeader: {
     alignItems: 'center',
-    paddingTop: 35,
+    paddingTop: 45,
     paddingBottom: 18,
     backgroundColor: '#fcf8ff',
     overflow: 'hidden',
@@ -181,14 +359,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f2ff',
   },
 
-  settingsButton: {
+  // Add / Edit Details Button
+  addDetailsButton: {
     position: 'absolute',
     top: 12,
-    right: 20,
+    right: 15,
     zIndex: 10,
-    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#233d78',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
 
+  addDetailsText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  // Avatar
   avatarContainer: {
     width: 82,
     height: 82,
@@ -250,7 +442,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     marginHorizontal: 12,
-    marginTop: 0,
     marginBottom: 14,
   },
 
@@ -357,4 +548,5 @@ const styles = StyleSheet.create({
     color: '#637a9d',
     marginTop: 3,
   },
+
 });
