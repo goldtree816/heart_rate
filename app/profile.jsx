@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,116 @@ import {
   StatusBar,
   Image,
   SafeAreaView,
+  Animated,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  Alert,
 } from 'react-native';
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 
 const STORAGE_KEY = '@heart_rate/personal_details';
+const AVATAR_KEY = '@heart_rate/profile_picture';
+
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// One block of info text that fades and slides in
+function InfoBlock({ heading, text, index }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 260,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 260,
+        delay: index * 70,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[styles.infoBlock, { opacity, transform: [{ translateY }] }]}
+    >
+      <Text style={styles.infoHeading}>{heading}</Text>
+      <Text style={styles.infoText}>{text}</Text>
+    </Animated.View>
+  );
+}
+
+// A menu row with a rotating arrow and expandable content
+function MenuRow({ item, expanded, onPress, renderIcon }) {
+  const expandable = Boolean(item.content);
+
+  const rotation = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(rotation, {
+      toValue: expanded ? 1 : 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [expanded]);
+
+  const rotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '90deg'],
+  });
+
+  return (
+    <View style={styles.menuEntry}>
+      <TouchableOpacity
+        style={styles.menuItem}
+        activeOpacity={0.7}
+        onPress={onPress}
+      >
+        <View style={styles.menuIcon}>{renderIcon(item)}</View>
+
+        <View style={styles.menuTextContainer}>
+          <Text style={styles.menuTitle}>{item.title}</Text>
+
+          {item.subtitle && (
+            <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+          )}
+        </View>
+
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <Ionicons name="chevron-forward" size={17} color="#8a9dbb" />
+        </Animated.View>
+      </TouchableOpacity>
+
+      {expandable && expanded && (
+        <View style={styles.expandedContent}>
+          {item.content.map((entry, index) => (
+            <InfoBlock
+              key={entry.heading}
+              heading={entry.heading}
+              text={entry.text}
+              index={index}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function Profile() {
   const router = useRouter();
@@ -32,12 +135,25 @@ export default function Profile() {
   // false -> nothing saved yet         -> show "Add Details"
   const [hasDetails, setHasDetails] = useState(false);
 
+  // Profile picture chosen from the gallery (null = default avatar)
+  const [avatarUri, setAvatarUri] = useState(null);
+
+  // Title of the menu item that is currently expanded (null = none)
+  const [expandedItem, setExpandedItem] = useState(null);
+
   // Load saved profile information
   useFocusEffect(
     useCallback(() => {
       let active = true;
 
       const loadDetails = async () => {
+        try {
+          const savedAvatar = await AsyncStorage.getItem(AVATAR_KEY);
+          if (active && savedAvatar) setAvatarUri(savedAvatar);
+        } catch (error) {
+          console.log('Error loading profile picture:', error);
+        }
+
         try {
           const savedData = await AsyncStorage.getItem(STORAGE_KEY);
 
@@ -87,6 +203,55 @@ export default function Profile() {
     router.push('/details');
   };
 
+  // Pick a profile picture from the gallery
+  const handlePickImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission needed',
+          'Please allow gallery access to choose a profile picture.'
+        );
+        return;
+      }
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.4,
+        base64: true,
+      });
+
+      if (pickerResult.canceled) return;
+
+      const asset = pickerResult.assets?.[0];
+      if (!asset?.base64) return;
+
+      const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+
+      setAvatarUri(dataUri);
+      await AsyncStorage.setItem(AVATAR_KEY, dataUri);
+    } catch (error) {
+      console.log('Error picking image:', error);
+      Alert.alert('Something went wrong', 'Could not set the picture.');
+    }
+  };
+
+  // Expand / collapse an info section
+  const toggleItem = (title) => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(
+        240,
+        LayoutAnimation.Types.easeInEaseOut,
+        LayoutAnimation.Properties.opacity
+      )
+    );
+    setExpandedItem((current) => (current === title ? null : title));
+  };
+
   const menuItems = [
     {
       title: 'Personal Information',
@@ -98,6 +263,28 @@ export default function Profile() {
       subtitle: 'Lose weight • Be more active',
       icon: 'target',
       type: 'feather',
+      content: [
+        {
+          heading: 'Lose weight',
+          text: 'Aim for gradual, steady progress. Small changes in meals and daily habits work better than crash diets.',
+        },
+        {
+          heading: 'Be more active',
+          text: 'Try to get about 30 minutes of moderate activity, like brisk walking or cycling, on most days of the week.',
+        },
+        {
+          heading: 'Stay hydrated',
+          text: 'Drink water regularly through the day, especially before and after exercise.',
+        },
+        {
+          heading: 'Sleep well',
+          text: 'Aim for 7 to 9 hours of sleep each night to support recovery and energy.',
+        },
+        {
+          heading: 'Please note',
+          text: 'These are general wellness tips, not medical advice. Talk to a doctor before starting a new diet or exercise plan.',
+        },
+      ],
     },
     {
       title: 'Notifications',
@@ -108,54 +295,87 @@ export default function Profile() {
       title: 'Data & Privacy',
       icon: 'shield-checkmark-outline',
       type: 'ion',
+      content: [
+        {
+          heading: 'Stored on your device',
+          text: 'Your personal details (name, age, height, weight) and your latest scan result are saved only on this phone.',
+        },
+        {
+          heading: 'Camera use',
+          text: 'The camera is used only during a scan to check whether a fingertip is covering the lens. Photos are not saved or shared.',
+        },
+        {
+          heading: 'No sharing',
+          text: 'Your information is not sold or shared with third parties.',
+        },
+        {
+          heading: 'Deleting your data',
+          text: 'Uninstalling the app or clearing its storage in your phone settings removes all saved data.',
+        },
+      ],
     },
     {
       title: 'Help & Support',
       icon: 'help-circle-outline',
       type: 'ion',
+      content: [
+        {
+          heading: 'How to scan',
+          text: 'Tap Start Scan, then cover the rear camera lens and flash completely with your fingertip. Keep still for about 5 seconds.',
+        },
+        {
+          heading: 'Finger not detected?',
+          text: 'Press gently but fully over the lens, keep the torch on, and avoid moving. Try again if it times out.',
+        },
+        {
+          heading: 'Update your details',
+          text: 'Tap Add Details or Edit Details at the top of this screen to change your name, age, height and weight.',
+        },
+        {
+          heading: 'Contact us',
+          text: 'Need more help? Email support@yourapp.com',
+        },
+      ],
     },
     {
       title: 'About App',
       icon: 'information-circle-outline',
       type: 'ion',
+      content: [
+        {
+          heading: 'Version',
+          text: '1.0.0',
+        },
+        {
+          heading: 'What it does',
+          text: 'A simple app for keeping your profile and trying out a fun heart rate scanner.',
+        },
+        {
+          heading: 'Important note',
+          text: 'Heart rate values shown by the scanner are randomly generated for fun. They are not real measurements and must not be used for medical decisions.',
+        },
+      ],
     },
   ];
 
   const renderIcon = (item) => {
     if (item.type === 'feather') {
-      return (
-        <Feather
-          name={item.icon}
-          size={20}
-          color="#233d78"
-        />
-      );
+      return <Feather name={item.icon} size={20} color="#233d78" />;
     }
 
-    return (
-      <Ionicons
-        name={item.icon}
-        size={21}
-        color="#233d78"
-      />
-    );
+    return <Ionicons name={item.icon} size={21} color="#233d78" />;
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#ffffff"
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-
           <View style={styles.headerBackground} />
           <View style={styles.headerGlow} />
 
@@ -177,17 +397,29 @@ export default function Profile() {
           </TouchableOpacity>
 
           {/* Avatar */}
-          <View style={styles.avatarContainer}>
-            <Image
-              source={require('../assets/avatar.png')}
-              style={styles.avatar}
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={handlePickImage}
+            activeOpacity={0.85}
+          >
+            <View style={styles.avatarContainer}>
+              <Image
+                source={
+                  avatarUri
+                    ? { uri: avatarUri }
+                    : require('../assets/avatar.png')
+                }
+                style={styles.avatar}
+              />
+            </View>
+
+            <View style={styles.cameraBadge}>
+              <Ionicons name="camera" size={12} color="#ffffff" />
+            </View>
+          </TouchableOpacity>
 
           {/* Name */}
-          <Text style={styles.name}>
-            {details.name}
-          </Text>
+          <Text style={styles.name}>{details.name}</Text>
 
           <Text style={styles.tagline}>
             Healthier Today, Stronger Tomorrow
@@ -195,27 +427,16 @@ export default function Profile() {
 
           {/* Premium Badge */}
           <View style={styles.premiumBadge}>
-            <Ionicons
-              name="star"
-              size={13}
-              color="#f59e0b"
-            />
-
-            <Text style={styles.premiumText}>
-              Premium
-            </Text>
+            <Ionicons name="star" size={13} color="#f59e0b" />
+            <Text style={styles.premiumText}>Premium</Text>
           </View>
-
         </View>
 
         {/* Health Stats */}
         <View style={styles.statsCard}>
-
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Age</Text>
-            <Text style={styles.statValue}>
-              {details.age}
-            </Text>
+            <Text style={styles.statValue}>{details.age}</Text>
             <Text style={styles.statUnit}>Years</Text>
           </View>
 
@@ -223,9 +444,7 @@ export default function Profile() {
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Height</Text>
-            <Text style={styles.statValue}>
-              {details.height}
-            </Text>
+            <Text style={styles.statValue}>{details.height}</Text>
             <Text style={styles.statUnit}>cm</Text>
           </View>
 
@@ -233,93 +452,52 @@ export default function Profile() {
 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Weight</Text>
-            <Text style={styles.statValue}>
-              {details.weight}
-            </Text>
+            <Text style={styles.statValue}>{details.weight}</Text>
             <Text style={styles.statUnit}>kg</Text>
           </View>
-
         </View>
 
         {/* Settings Menu */}
         <View style={styles.menu}>
-
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.menuItem}
-              activeOpacity={0.7}
+          {menuItems.map((item) => (
+            <MenuRow
+              key={item.title}
+              item={item}
+              expanded={expandedItem === item.title}
+              renderIcon={renderIcon}
               onPress={() => {
                 if (item.title === 'Personal Information') {
                   handleAddDetails();
+                } else if (item.content) {
+                  toggleItem(item.title);
                 }
               }}
-            >
-              <View style={styles.menuIcon}>
-                {renderIcon(item)}
-              </View>
-
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>
-                  {item.title}
-                </Text>
-
-                {item.subtitle && (
-                  <Text style={styles.menuSubtitle}>
-                    {item.subtitle}
-                  </Text>
-                )}
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={17}
-                color="#8a9dbb"
-              />
-
-            </TouchableOpacity>
+            />
           ))}
-
         </View>
 
         {/* Health Banner */}
-        <TouchableOpacity
-          style={styles.healthBanner}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.healthBanner} activeOpacity={0.8}>
           <View style={styles.heartCircle}>
-            <Ionicons
-              name="heart"
-              size={23}
-              color="#f43f5e"
-            />
+            <Ionicons name="heart" size={23} color="#f43f5e" />
           </View>
 
           <View style={styles.healthText}>
-            <Text style={styles.healthTitle}>
-              Your Health Matters
-            </Text>
+            <Text style={styles.healthTitle}>Your Health Matters</Text>
 
             <Text style={styles.healthSubtitle}>
               Track. Improve. Live Better.
             </Text>
           </View>
 
-          <Ionicons
-            name="chevron-forward"
-            size={17}
-            color="#8a9dbb"
-          />
-
+          <Ionicons name="chevron-forward" size={17} color="#8a9dbb" />
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -381,6 +559,24 @@ const styles = StyleSheet.create({
   },
 
   // Avatar
+  avatarWrapper: {
+    marginBottom: 10,
+  },
+
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#233d78',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   avatarContainer: {
     width: 82,
     height: 82,
@@ -390,7 +586,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
-    marginBottom: 10,
     overflow: 'hidden',
   },
 
@@ -480,12 +675,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 
+  menuEntry: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf1f5',
+  },
+
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 49,
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf1f5',
     paddingHorizontal: 6,
     paddingVertical: 9,
   },
@@ -509,6 +707,36 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#8494aa',
     marginTop: 3,
+  },
+
+  // Expanded content (shown below a menu item, aligned with menu text)
+  expandedContent: {
+    marginLeft: 42,
+    marginRight: 6,
+    paddingLeft: 12,
+    paddingTop: 2,
+    marginBottom: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#c5d6ff',
+  },
+
+  infoBlock: {
+    marginBottom: 10,
+  },
+
+  // Same style as menuTitle
+  infoHeading: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#152b54',
+  },
+
+  // Same style as menuSubtitle
+  infoText: {
+    fontSize: 10,
+    color: '#8494aa',
+    marginTop: 3,
+    lineHeight: 16,
   },
 
   // Health Banner
@@ -548,5 +776,4 @@ const styles = StyleSheet.create({
     color: '#637a9d',
     marginTop: 3,
   },
-
 });
