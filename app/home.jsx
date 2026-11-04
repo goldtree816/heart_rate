@@ -12,6 +12,7 @@ import {
 import {
   initializeStepTracker,
   getTodaySteps,
+  subscribeToStepUpdates,
 } from '../components/stepTracker';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,10 +33,8 @@ import styles from '../style/home';
 // Name shown when the user hasn't saved their details yet
 const DEFAULT_NAME = 'Guest';
 
-// Same key used in index.jsx
+// Storage keys
 const HEART_RATE_KEY = '@heart_rate/latest_scan';
-
-// Same key used in profile.jsx
 const PERSONAL_DETAILS_KEY = '@heart_rate/personal_details';
 
 // Daily step goal
@@ -51,6 +50,7 @@ const getGreeting = () => {
   return 'Good Evening,';
 };
 
+// Quick Actions
 const quickActions = [
   {
     label: 'Measure\nHeart Rate',
@@ -103,7 +103,7 @@ export default function Home() {
   const [steps, setSteps] = useState(0);
   const [calories, setCalories] = useState(0);
 
-  // Load all dashboard data whenever Home becomes active
+  // Load dashboard data whenever Home becomes active
   useFocusEffect(
     useCallback(() => {
       let interval = null;
@@ -123,10 +123,7 @@ export default function Home() {
 
           if (!isMounted) return;
 
-          // -----------------------------
           // USER NAME
-          // -----------------------------
-
           const savedDetails = values[5][1];
 
           if (savedDetails) {
@@ -142,10 +139,7 @@ export default function Home() {
             setUserName(DEFAULT_NAME);
           }
 
-          // -----------------------------
           // SLEEP DATA
-          // -----------------------------
-
           const savedBedTime = values[0][1];
           const savedDuration = values[1][1];
           const savedStartTimestamp = values[2][1];
@@ -181,6 +175,7 @@ export default function Home() {
             updateLiveDuration();
 
             interval = setInterval(updateLiveDuration, 1000);
+
           } else if (savedDuration !== null) {
             // Show the last completed sleep duration
             const totalSeconds = Number(savedDuration);
@@ -192,14 +187,12 @@ export default function Home() {
             );
 
             setSleepDuration(`${hours}h ${minutes}m`);
+
           } else {
             setSleepDuration('0h 0m');
           }
 
-          // -----------------------------
           // HEART RATE DATA
-          // -----------------------------
-
           const savedHeartRate = values[4][1];
 
           if (savedHeartRate) {
@@ -228,66 +221,63 @@ export default function Home() {
     }, [])
   );
 
-  // -----------------------------
   // DAILY STEP TRACKER
-  // -----------------------------
-
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
-      let stepInterval = null;
+      let unsubscribe = null;
+
+      const updateStepValues = (value) => {
+        if (!isMounted) return;
+
+        const totalSteps = Math.max(
+          0,
+          Number(value) || 0
+        );
+
+        setSteps(totalSteps);
+
+        // Estimated calories: 20 steps = 1 kcal
+        setCalories(Math.floor(totalSteps / 20));
+      };
 
       const loadSteps = async () => {
         try {
-          // Initialize Health Connect and request permission
+          // Subscribe to live sensor updates first
+          unsubscribe = subscribeToStepUpdates((newSteps) => {
+            updateStepValues(newSteps);
+          });
+
+          // Request permission and start native sensor
           await initializeStepTracker();
 
           if (!isMounted) return;
 
-          // Get today's steps
+          // Load previously saved step count
           const todaySteps = await getTodaySteps();
 
           if (!isMounted) return;
 
-          const totalSteps = Math.max(
-            0,
-            Number(todaySteps) || 0
-          );
-
-          // Update steps
-          setSteps(totalSteps);
-
-          // Estimated calories
-          // Rough estimate: 20 steps = 1 kcal
-          setCalories(Math.floor(totalSteps / 20));
+          updateStepValues(todaySteps);
 
         } catch (error) {
           console.log('Error loading step data:', error);
         }
       };
 
-      // Load immediately
       loadSteps();
-
-      // Refresh every 60 seconds
-      stepInterval = setInterval(() => {
-        loadSteps();
-      }, 60000);
 
       return () => {
         isMounted = false;
 
-        if (stepInterval) {
-          clearInterval(stepInterval);
+        if (unsubscribe) {
+          unsubscribe();
         }
       };
     }, [])
   );
 
-  // -----------------------------
   // HEALTH STATISTICS
-  // -----------------------------
-
   const stats = [
     {
       label: 'Steps',
@@ -394,91 +384,116 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
-        {/* Heart Rate Card */}
-        <LinearGradient
-          colors={['#fb5a78', '#f43f5e']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heartCard}
+        {/* Heart Rate Card - Opens index.jsx */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push('/')}
+          accessibilityRole="button"
+          accessibilityLabel="Open Heart Rate"
         >
-          <View style={styles.heartHeader}>
-            <Text style={styles.heartTitle}>
-              Heart Rate
-            </Text>
+          <LinearGradient
+            colors={['#fb5a78', '#f43f5e']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heartCard}
+          >
+            <View style={styles.heartHeader}>
+              <Text style={styles.heartTitle}>
+                Heart Rate
+              </Text>
 
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color="#ffffff"
-            />
-          </View>
-
-          <View style={styles.heartBody}>
-            <View style={styles.heartCircle}>
-              <MaterialCommunityIcons
-                name="heart-pulse"
-                size={34}
+              <Ionicons
+                name="chevron-forward"
+                size={18}
                 color="#ffffff"
               />
             </View>
 
-            <View style={styles.heartInfo}>
-              <View style={styles.bpmRow}>
-                <Text style={styles.bpmValue}>
-                  {heartRate}
-                </Text>
-
-                <Text style={styles.bpmUnit}>
-                  bpm
-                </Text>
+            <View style={styles.heartBody}>
+              <View style={styles.heartCircle}>
+                <MaterialCommunityIcons
+                  name="heart-pulse"
+                  size={34}
+                  color="#ffffff"
+                />
               </View>
 
-              <View style={styles.normalPill}>
-                <View style={styles.normalDot} />
+              <View style={styles.heartInfo}>
+                <View style={styles.bpmRow}>
+                  <Text style={styles.bpmValue}>
+                    {heartRate}
+                  </Text>
 
-                <Text style={styles.normalText}>
-                  {heartRate > 0
-                    ? 'Latest reading'
-                    : 'Not measured'}
-                </Text>
+                  <Text style={styles.bpmUnit}>
+                    bpm
+                  </Text>
+                </View>
+
+                <View style={styles.normalPill}>
+                  <View style={styles.normalDot} />
+
+                  <Text style={styles.normalText}>
+                    {heartRate > 0
+                      ? 'Latest reading'
+                      : 'Not measured'}
+                  </Text>
+                </View>
               </View>
+
+              <Ionicons
+                name="pulse"
+                size={56}
+                color="#ffffff"
+                style={styles.ecg}
+              />
             </View>
-
-            <Ionicons
-              name="pulse"
-              size={56}
-              color="#ffffff"
-              style={styles.ecg}
-            />
-          </View>
-        </LinearGradient>
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          {stats.map((item) => (
-            <View key={item.label} style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIcon,
-                  { backgroundColor: item.bg },
-                ]}
+          {stats.map((item) => {
+            const isSleep = item.label === 'Sleep';
+
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.statCard}
+                activeOpacity={isSleep ? 0.8 : 1}
+                onPress={() => {
+                  if (isSleep) {
+                    router.push('/sleep');
+                  }
+                }}
+                disabled={!isSleep}
+                accessibilityRole={isSleep ? 'button' : undefined}
+                accessibilityLabel={
+                  isSleep ? 'Open Sleep' : item.label
+                }
               >
-                {item.icon}
-              </View>
+                <View
+                  style={[
+                    styles.statIcon,
+                    { backgroundColor: item.bg },
+                  ]}
+                >
+                  {item.icon}
+                </View>
 
-              <Text style={styles.statLabel}>
-                {item.label}
-              </Text>
+                <Text style={styles.statLabel}>
+                  {item.label}
+                </Text>
 
-              <Text style={styles.statValue}>
-                {item.value}
-              </Text>
+                <Text style={styles.statValue}>
+                  {item.value}
+                </Text>
 
-              <Text style={styles.statSub}>
-                {item.sub}
-              </Text>
-            </View>
-          ))}
+                <Text style={styles.statSub}>
+                  {item.sub}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Today's Overview */}

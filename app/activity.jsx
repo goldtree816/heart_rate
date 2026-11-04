@@ -20,10 +20,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { C, styles } from '../style/activity';
 
-// Same key used in index.jsx
+import {
+  initializeStepTracker,
+  getTodaySteps,
+  subscribeToStepUpdates,
+} from '../components/stepTracker';
+
+// Heart rate storage key
 const HEART_RATE_KEY = '@heart_rate/latest_scan';
 
-// Sample data
+const RANGES = ['Day', 'Week', 'Month', 'Year'];
+const DAY_MS = 86400000;
+
+// Sample heart rate chart data
 const seeded = (seed) => () => {
   seed = (seed * 9301 + 49297) % 233280;
   return seed / 233280;
@@ -38,52 +47,12 @@ const makeSeries = (n, base, amp, seed) => {
   );
 };
 
-// Existing sample chart data
 const HEART = makeSeries(60, 82, 14, 7);
-
-const CALORIES = makeSeries(50, 40, 12, 3).map(
-  (v, i) => v + i * 0.3
-);
-
-const STEPS = [
-  0, 0, 0, 0, 0, 0, 4, 7, 5, 8, 3, 6,
-  9, 11, 10, 8, 12, 14, 9, 7, 4, 2, 0, 0,
-];
 
 const SLEEP = [
   3, 5, 6, 4, 5, 8, 7, 9, 6, 8, 10,
   9, 7, 8, 6, 9, 10, 8, 7, 9, 6, 8,
 ];
-
-const RECENT = [
-  {
-    id: '1',
-    title: 'Walking',
-    meta: '30 min • 2.1 km',
-    when: 'Today, 7:12 AM',
-    icon: 'walk',
-    color: '#22B866',
-  },
-  {
-    id: '2',
-    title: 'Running',
-    meta: '20 min • 3.5 km',
-    when: 'Yesterday, 6:30 PM',
-    icon: 'run',
-    color: '#2F8BFF',
-  },
-  {
-    id: '3',
-    title: 'Cycling',
-    meta: '45 min • 12.4 km',
-    when: 'Yesterday, 7:15 AM',
-    icon: 'bike',
-    color: '#8B5CF6',
-  },
-];
-
-const RANGES = ['Day', 'Week', 'Month', 'Year'];
-const DAY_MS = 86400000;
 
 // Format sleep duration
 const formatSleepDuration = (totalSeconds) => {
@@ -134,7 +103,6 @@ const LineChart = ({
 
   const dataRange = dataMax - dataMin || 1;
 
-  // Automatically add 15% spacing above and below
   const padding = dataRange * 0.15;
 
   const lo = min ?? Math.max(0, dataMin - padding);
@@ -285,12 +253,72 @@ export default function ActivityScreen() {
   // Heart rate
   const [heartRate, setHeartRate] = useState(0);
 
+  // Steps and calories
+  const [steps, setSteps] = useState(0);
+  const [calories, setCalories] = useState(0);
+
   // Sleep
   const [sleepDuration, setSleepDuration] = useState('0h 0m');
   const [bedTime, setBedTime] = useState('--:--');
   const [isSleeping, setIsSleeping] = useState(false);
 
-  // Load saved Heart Rate and Sleep data
+  // Update steps and calories together
+  const updateStepValues = useCallback((value) => {
+    const totalSteps = Math.max(
+      0,
+      Number(value) || 0
+    );
+
+    setSteps(totalSteps);
+
+    // Same calculation used on Home
+    setCalories(Math.floor(totalSteps / 20));
+  }, []);
+
+  /* ---------- Load Step Counter ---------- */
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      let unsubscribe = null;
+
+      const loadSteps = async () => {
+        try {
+          // Listen for live step updates
+          unsubscribe = subscribeToStepUpdates((newSteps) => {
+            if (isActive) {
+              updateStepValues(newSteps);
+            }
+          });
+
+          // Start native step counter
+          await initializeStepTracker();
+
+          // Read saved steps
+          const savedSteps = await getTodaySteps();
+
+          if (isActive) {
+            updateStepValues(savedSteps);
+          }
+        } catch (error) {
+          console.log('Error loading step counter:', error);
+        }
+      };
+
+      loadSteps();
+
+      return () => {
+        isActive = false;
+
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
+    }, [updateStepValues])
+  );
+
+  /* ---------- Load Heart Rate and Sleep ---------- */
+
   useFocusEffect(
     useCallback(() => {
       let interval = null;
@@ -354,18 +382,15 @@ export default function ActivityScreen() {
               updateLiveSleep,
               1000
             );
-
           } else if (savedDuration !== null) {
             const totalSeconds = Number(savedDuration);
 
             setSleepDuration(
               formatSleepDuration(totalSeconds)
             );
-
           } else {
             setSleepDuration('0h 0m');
           }
-
         } catch (error) {
           console.log(
             'Error loading activity data:',
@@ -386,7 +411,8 @@ export default function ActivityScreen() {
     }, [])
   );
 
-  // Date
+  /* ---------- Date ---------- */
+
   const dateLabel = useMemo(() => {
     const d = new Date(
       Date.now() + offset * DAY_MS
@@ -402,6 +428,27 @@ export default function ActivityScreen() {
       ? `Today, ${dateText}`
       : dateText;
   }, [offset]);
+
+  // Historical step records are not currently stored.
+  const isToday = offset === 0;
+
+  const displayedSteps = isToday ? steps : 0;
+  const displayedCalories = isToday ? calories : 0;
+
+  const stepProgress = Math.min(
+    (displayedSteps / 10000) * 100,
+    100
+  );
+
+  const stepChartData = useMemo(
+    () => [displayedSteps],
+    [displayedSteps]
+  );
+
+  const calorieChartData = useMemo(
+    () => [displayedCalories],
+    [displayedCalories]
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -584,10 +631,16 @@ export default function ActivityScreen() {
 
           <View style={styles.row}>
             <View style={styles.leftCol}>
-              <Text style={styles.big}>4,230</Text>
+              <Text style={styles.big}>
+                {isToday
+                  ? displayedSteps.toLocaleString()
+                  : '--'}
+              </Text>
 
               <Text style={styles.sub}>
-                of 10,000
+                {isToday
+                  ? 'of 10,000'
+                  : 'Historical data unavailable'}
               </Text>
 
               <View style={styles.progressTrack}>
@@ -595,7 +648,7 @@ export default function ActivityScreen() {
                   style={[
                     styles.progressFill,
                     {
-                      width: `${(4230 / 10000) * 100}%`,
+                      width: `${stepProgress}%`,
                     },
                   ]}
                 />
@@ -612,20 +665,13 @@ export default function ActivityScreen() {
               ]}
             >
               <BarChart
-                data={STEPS}
+                data={stepChartData}
                 color={C.steps.main}
                 height={56}
                 gap={3}
               />
 
-              <AxisLabels
-                labels={[
-                  '12 AM',
-                  '6 AM',
-                  '12 PM',
-                  '6 PM',
-                ]}
-              />
+              <AxisLabels labels={['Today']} />
             </View>
           </View>
         </View>
@@ -656,17 +702,23 @@ export default function ActivityScreen() {
             </View>
 
             <Text style={styles.big}>
-              320{' '}
+              {isToday
+                ? displayedCalories.toLocaleString()
+                : '--'}{' '}
               <Text style={styles.bigUnit}>kcal</Text>
             </Text>
 
             <View style={styles.calChart}>
               <LineChart
-                data={CALORIES}
+                data={calorieChartData}
                 color={C.cal.main}
                 height={34}
               />
             </View>
+
+            <Text style={styles.sub}>
+              Estimated from steps
+            </Text>
           </View>
 
           {/* Sleep */}
@@ -713,59 +765,50 @@ export default function ActivityScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Empty */}
         <View style={styles.recentHead}>
           <Text style={styles.recentTitle}>
             Recent Activity
           </Text>
-
-          <TouchableOpacity hitSlop={8}>
-            <Text style={styles.viewAll}>
-              View All
-            </Text>
-          </TouchableOpacity>
         </View>
 
-        {RECENT.map((a) => (
-          <TouchableOpacity
-            key={a.id}
-            style={styles.activityRow}
-            activeOpacity={0.6}
+        <View
+          style={[
+            styles.card,
+            {
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 25,
+            },
+          ]}
+        >
+          <Icon
+            name="history"
+            size={35}
+            color={C.muted}
+          />
+
+          <Text
+            style={[
+              styles.cardTitle,
+              { marginTop: 10 },
+            ]}
           >
-            <View
-              style={[
-                styles.activityIcon,
-                { backgroundColor: a.color },
-              ]}
-            >
-              <Icon
-                name={a.icon}
-                size={22}
-                color="#fff"
-              />
-            </View>
+            No Recent Activity
+          </Text>
 
-            <View style={styles.flex1}>
-              <Text style={styles.activityTitle}>
-                {a.title}
-              </Text>
-
-              <Text style={styles.activityMeta}>
-                {a.meta}
-              </Text>
-            </View>
-
-            <Text style={styles.activityWhen}>
-              {a.when}
-            </Text>
-
-            <Icon
-              name="chevron-right"
-              size={20}
-              color={C.muted}
-            />
-          </TouchableOpacity>
-        ))}
+          <Text
+            style={[
+              styles.sub,
+              {
+                textAlign: 'center',
+                marginTop: 5,
+              },
+            ]}
+          >
+            Your recent activities will appear here.
+          </Text>
+        </View>
 
       </ScrollView>
     </SafeAreaView>

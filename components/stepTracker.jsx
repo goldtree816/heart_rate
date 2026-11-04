@@ -1,81 +1,81 @@
 
 import {
-  initialize,
-  getSdkStatus,
-  requestPermission,
-  getGrantedPermissions,
-  aggregateRecord,
-  SdkAvailabilityStatus,
-} from 'react-native-health-connect';
+  NativeModules,
+  NativeEventEmitter,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 
-const STEPS_PERMISSION = {
-  accessType: 'read',
-  recordType: 'Steps',
-};
+const { StepCounter } = NativeModules;
 
-// 1. Initialize Health Connect and request permission
-export async function initializeStepTracker() {
-  const status = await getSdkStatus();
+if (!StepCounter) {
+  console.warn('Native StepCounter module is not registered.');
+}
 
-  if (status !== SdkAvailabilityStatus.SDK_AVAILABLE) {
-    throw new Error(
-      'Health Connect is not available on this device.'
-    );
+const stepCounterEmitter = StepCounter
+  ? new NativeEventEmitter(StepCounter)
+  : null;
+
+// Request Android activity recognition permission
+async function requestStepPermission() {
+  if (Platform.OS !== 'android') {
+    throw new Error('Step counter is currently supported on Android only.');
   }
 
-  const initialized = await initialize();
-
-  if (!initialized) {
-    throw new Error('Failed to initialize Health Connect.');
-  }
-
-  const grantedPermissions = await getGrantedPermissions();
-
-  const hasPermission = grantedPermissions.some(
-    (permission) =>
-      permission.accessType === 'read' &&
-      permission.recordType === 'Steps'
-  );
-
-  if (!hasPermission) {
-    const permissions = await requestPermission([
-      STEPS_PERMISSION,
-    ]);
-
-    const permissionGranted = permissions.some(
-      (permission) =>
-        permission.accessType === 'read' &&
-        permission.recordType === 'Steps'
+  if (Platform.Version >= 29) {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
     );
 
-    if (!permissionGranted) {
-      throw new Error('Step permission was not granted.');
+    if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+      throw new Error('Activity recognition permission was denied.');
     }
   }
 
   return true;
 }
 
-// 2. Retrieve today's total steps
-export async function getTodaySteps() {
-  const now = new Date();
+// Initialize and start the native step counter
+export async function initializeStepTracker() {
+  if (!StepCounter) {
+    throw new Error('Native StepCounter module is not available.');
+  }
 
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
+  await requestStepPermission();
 
-  const result = await aggregateRecord({
-    recordType: 'Steps',
-    timeRangeFilter: {
-      operator: 'between',
-      startTime: startOfDay.toISOString(),
-      endTime: now.toISOString(),
-    },
-  });
+  await StepCounter.startStepCounting();
 
-  return Number(result.count ?? 0);
+  return true;
 }
 
-// 3. Calculate daily calories and progress
+// Retrieve saved steps
+export async function getTodaySteps() {
+  if (!StepCounter) {
+    throw new Error('Native StepCounter module is not available.');
+  }
+
+  const steps = await StepCounter.getSteps();
+
+  return Number(steps ?? 0);
+}
+
+// Listen for live step updates
+export function subscribeToStepUpdates(callback) {
+  if (!stepCounterEmitter) {
+    throw new Error('Native StepCounter module is not available.');
+  }
+
+  const subscription = stepCounterEmitter.addListener(
+    'StepCounterUpdate',
+    (steps) => {
+      callback(Number(steps));
+    }
+  );
+
+  return () => subscription.remove();
+}
+
+// Retrieve daily activity
 export async function getDailyActivity() {
   await initializeStepTracker();
 
